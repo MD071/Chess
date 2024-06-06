@@ -1,5 +1,6 @@
 package it.unimol.scacchi.gui;
 
+import it.unimol.scacchi.app.CheckScanner;
 import it.unimol.scacchi.app.Input;
 import it.unimol.scacchi.pieces.King;
 import it.unimol.scacchi.pieces.Knight;
@@ -14,7 +15,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 
-public class Board extends JPanel {
+public class  Board extends JPanel {
 
     public int titleSize = 85;
 
@@ -27,6 +28,8 @@ public class Board extends JPanel {
 
     Input input = new Input(this);
     public int enPeasantTile = -1;
+
+    public CheckScanner checkScanner = new CheckScanner(this);
     public Board(){
         this.setPreferredSize(new Dimension(cols * titleSize, rows * titleSize));
 
@@ -48,7 +51,9 @@ public class Board extends JPanel {
     public void makeMove(Move move){
         if(move.piece.name.equals("Pawn")){
             movePawn(move);
-        }else {
+        }else if(move.piece.name.equals("King")) {
+            moveKing(move);
+        }
             move.piece.col = move.newcol;
             move.piece.row = move.newrow;
             move.piece.xPos = move.newcol * titleSize;
@@ -57,7 +62,7 @@ public class Board extends JPanel {
             move.piece.isFirstMove = false;
 
             capture(move.capture);
-        }
+
     }
 
     private void movePawn(Move move){
@@ -65,10 +70,10 @@ public class Board extends JPanel {
         int colorIndex = move.piece.isWhite ? 1 : -1;
 
         if(getTileNum(move.newcol, move.newrow) == enPeasantTile){
-            move.capture = getPiece(move.newcol, move.piece.row + colorIndex);
+            move.capture = getPiece(move.newcol, move.newrow + colorIndex);
         }
-        if(Math.abs(move.piece.row - move.newrow) == 2) {
-            enPeasantTile = getTileNum(move.newcol, move.piece.row + colorIndex);
+        if(Math.abs(move.piece.row - move.newrow) == 2 && isOpponentPawnBeside(move)) {
+            enPeasantTile = getTileNum(move.newcol, move.newrow + colorIndex);
         }else{
             enPeasantTile = -1;
         }
@@ -78,20 +83,65 @@ public class Board extends JPanel {
         if(move.newrow == colorIndex){
             promotePawn(move);
         }
+    }
 
-        move.piece.col = move.newcol;
-        move.piece.row = move.newrow;
-        move.piece.xPos = move.newcol * titleSize;
-        move.piece.yPos = move.newrow * titleSize;
-
-        move.piece.isFirstMove = false;
-
-        capture(move.capture);
+    private boolean isOpponentPawnBeside(Move move) {
+        Piece leftPiece = getPiece(move.newcol - 1, move.newrow);
+        Piece rightPiece = getPiece(move.newcol + 1, move.newrow);
+        return (leftPiece != null && leftPiece.name.equals("Pawn") && leftPiece.isWhite != move.piece.isWhite) ||
+                (rightPiece != null && rightPiece.name.equals("Pawn") && rightPiece.isWhite != move.piece.isWhite);
     }
 
     private void promotePawn(Move move){
-        piecesList.add(new Queen(this, move.newcol, move.newrow, move.piece.isWhite));
-        capture(move.piece);
+        JDialog promotionDialog = new JDialog();
+        promotionDialog.setTitle("Promuovi Pedone");
+        promotionDialog.setModal(true);
+
+        JButton queenButton = new JButton("Promuovi a Regina");
+        queenButton.addActionListener(e -> {
+            piecesList.add(new Queen(this, move.newcol, move.newrow, move.piece.isWhite));
+            capture(move.piece);
+            promotionDialog.dispose();
+        });
+        queenButton.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        queenButton.setBackground(Color.LIGHT_GRAY);
+
+        JButton rookButton = new JButton("Promuovi a Torre");
+        rookButton.addActionListener(e -> {
+            piecesList.add(new Rook(this, move.newcol, move.newrow, move.piece.isWhite));
+            capture(move.piece);
+            promotionDialog.dispose();
+        });
+        rookButton.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        rookButton.setBackground(Color.LIGHT_GRAY);
+
+        JButton bishopButton = new JButton("Promuovi a Alfiere");
+        bishopButton.addActionListener(e -> {
+            piecesList.add(new Bishop(this, move.newcol, move.newrow, move.piece.isWhite));
+            capture(move.piece);
+            promotionDialog.dispose();
+        });
+        bishopButton.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        bishopButton.setBackground(Color.LIGHT_GRAY);
+
+        JButton knightButton = new JButton("Promuovi a Cavallo");
+        knightButton.addActionListener(e -> {
+            piecesList.add(new Knight(this, move.newcol, move.newrow, move.piece.isWhite));
+            capture(move.piece);
+            promotionDialog.dispose();
+        });
+        knightButton.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        knightButton.setBackground(Color.LIGHT_GRAY);
+
+        promotionDialog.setLayout(new GridLayout(4, 1));
+        promotionDialog.add(queenButton);
+        promotionDialog.add(rookButton);
+        promotionDialog.add(bishopButton);
+        promotionDialog.add(knightButton);
+
+        promotionDialog.pack();
+        promotionDialog.setLocationRelativeTo(null);
+        promotionDialog.setVisible(true);
     }
 
     public void capture(Piece piece){
@@ -109,6 +159,9 @@ public class Board extends JPanel {
         if(move.piece.moveColidesWithPiece(move.newcol, move.newrow)){
             return false;
         }
+        if(checkScanner.isKingCheck(move)){
+            return false;
+        }
 
         return true;
     }
@@ -122,6 +175,30 @@ public class Board extends JPanel {
 
     public int getTileNum(int col, int row){
         return row * rows + col;
+    }
+
+    public Piece findKing(boolean isWhite){
+        for (Piece piece : piecesList){
+            if(piece.name.equals("King") && piece.isWhite == isWhite){
+                return piece;
+            }
+        }
+        return null;
+    }
+
+    private void moveKing(Move move){
+        if(Math.abs(move.piece.col - move.newcol) == 2){
+            Piece rook;
+            if(move.piece.col < move.newcol){
+                rook = getPiece(7, move.piece.row);
+                rook.col = 5;
+            }else{
+                rook = getPiece(0, move.piece.row);
+                rook.col = 3;
+            }
+            rook.xPos = rook.col * titleSize;
+        }
+
     }
 
     public void addPiece() {

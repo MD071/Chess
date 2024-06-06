@@ -13,7 +13,7 @@ public class Rook extends Piece{
         this.yPos = row * board.titleSize;
 
         this.isWhite = isWhite;
-        this.name = "King";
+        this.name = "Rook";
 
         this.sprite = sheet.getSubimage(4 * sheetScale, isWhite ? 0 : sheetScale, sheetScale, sheetScale).getScaledInstance(board.titleSize, board.titleSize, BufferedImage.SCALE_SMOOTH);
     }
